@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     const MAX_NUM_DRAFTS: usize = 2;
 
     loop {
-        while new_content == cur_content {
+        while new_content.trim() == cur_content.trim() {
             tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
             new_content = match std::fs::read_to_string(file_path) {
                 Ok(content) => content,
