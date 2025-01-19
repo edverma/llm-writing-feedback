@@ -23,6 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut messages = vec![];
     let client = reqwest::Client::new();
     let mut version_num = 1;
+    const MAX_NUM_DRAFTS: usize = 2;
 
     loop {
         while new_content == cur_content {
@@ -41,6 +42,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "role": "user",
             "content": cur_content
         }));
+        
+        // Keep only the last MAX_NUM_DRAFTS messages
+        if messages.len() > MAX_NUM_DRAFTS {
+            messages = messages.drain(messages.len() - MAX_NUM_DRAFTS..).collect();
+        }
+        
         let payload = serde_json::json!({
             "model": "claude-3-5-sonnet-20241022",
             "max_tokens": 1024,
@@ -65,7 +72,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Print only the content from the response
         if let Some(content) = response["content"].as_array().and_then(|arr| arr.first()) {
             if let Some(text) = content["text"].as_str() {
-                println!("\n\nWriting Feedback (Version {}):\n\n{}\n\n", version_num, text);
+                // Clear the terminal screen
+                print!("\x1B[2J\x1B[1;1H");  // ANSI escape codes to clear screen and move cursor to top
+                println!("Writing Feedback (Version {}):\n\n{}\n\n", version_num, text);
             }
         }
         version_num += 1;
