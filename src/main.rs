@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     loop {
         while new_content.trim() == cur_content.trim() {
-            tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
             new_content = match std::fs::read_to_string(file_path) {
                 Ok(content) => content,
                 Err(e) => {
@@ -59,6 +59,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "messages": messages
         });
 
+        // Create and start the progress bar
+        let spinner = indicatif::ProgressBar::new_spinner();
+        spinner.set_message("Waiting for AI response...");
+        spinner.enable_steady_tick(std::time::Duration::from_millis(120));
+
         // Make the API call
         let response = client
             .post(&api_url)
@@ -70,6 +75,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .await?
             .json::<serde_json::Value>()
             .await?;
+
+        // Stop the spinner
+        spinner.finish_and_clear();
 
         // Print only the content from the response
         if let Some(content) = response["content"].as_array().and_then(|arr| arr.first()) {
