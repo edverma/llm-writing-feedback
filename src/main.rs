@@ -10,6 +10,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let api_url = std::env::var("ANTHROPIC_API_URL").expect("ANTHROPIC_API_URL must be set");
     let api_key = std::env::var("ANTHROPIC_API_KEY").expect("ANTHROPIC_API_KEY must be set");
+    let api_model = std::env::var("ANTHROPIC_API_MODEL").expect("ANTHROPIC_API_MODEL must be set");
+
 
     let file_path = &args[1];
     let mut new_content = match std::fs::read_to_string(file_path) {
@@ -49,9 +51,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         
         let payload = serde_json::json!({
-            "model": "claude-3-5-sonnet-20241022",
+            "model": api_model,
             "max_tokens": 1024,
-            "system": "You are a robot that lives inside of a simple markdown text editor. The user is currently writing an article. You will be given the
+            "system": "You are a robot that lives inside of a simple markdown text editor. The user is unable to directly respond to your messages. The user is currently writing an article. You will be given the
             each consecutive version of the article. The user is currently actively writing and editing the article.
             Upon reading the article, you should offer VERY BRIEF, but helpful, feedback on the latest version of the article. Only comment on the changed content between the latest version and the previous versions of the article.",
             "messages": messages
