@@ -10,8 +10,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let api_key = std::env::var("ANTHROPIC_API_KEY").expect("ANTHROPIC_API_KEY must be set");
 
-    let api_url = String::from("https://api.anthropic.com/v1/messages");
-    let api_model = String::from("claude-3-5-sonnet-20241022");
+    let api_url = "https://api.anthropic.com/v1/messages";
+    let api_model = "claude-3-5-sonnet-20241022";
 
 
     let file_path = &args[1];
@@ -67,7 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Make the API call
         let response = client
-            .post(&api_url)
+            .post(api_url)
             .header("x-api-key", &api_key)
             .header("anthropic-version", "2023-06-01")
             .header("content-type", "application/json")
