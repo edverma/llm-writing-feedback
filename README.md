@@ -29,6 +29,6 @@ A real-time writing assistant that provides instant feedback on your writing usi
 
 Run the application with a target markdown file:
 ```
-cargo run --release --target-file path/to/your/file.md
+cargo run --release -- path/to/your/file.md
 ```
 
