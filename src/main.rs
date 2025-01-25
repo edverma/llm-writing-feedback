@@ -8,9 +8,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     dotenv::dotenv().ok();
     
-    let api_url = std::env::var("ANTHROPIC_API_URL").expect("ANTHROPIC_API_URL must be set");
     let api_key = std::env::var("ANTHROPIC_API_KEY").expect("ANTHROPIC_API_KEY must be set");
-    let api_model = std::env::var("ANTHROPIC_API_MODEL").expect("ANTHROPIC_API_MODEL must be set");
+
+    let api_url = String::from("https://api.anthropic.com/v1/messages");
+    let api_model = String::from("claude-3-5-sonnet-20241022");
 
 
     let file_path = &args[1];
