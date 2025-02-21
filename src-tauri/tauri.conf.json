@@ -10,5 +10,19 @@
     "active": true,
     "targets": ["dmg"],
     "icon": ["icons/icon.icns"]
+  },
+  "app": {
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 600,
+        "resizable": true,
+        "title": "LLM Writing Feedback",
+        "width": 800
+      }
+    ],
+    "security": {
+      "csp": null
+    }
   }
 } 
