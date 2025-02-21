@@ -1,0 +1,17 @@
+{
+  "name": "llm-feedback-frontend",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --config vite.config.mjs",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "svelte": "^3.0.0"
+  },
+  "devDependencies": {
+    "vite": "^4.0.0",
+    "@sveltejs/vite-plugin-svelte": "^2.0.0"
+  }
+} 

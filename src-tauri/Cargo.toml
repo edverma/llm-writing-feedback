@@ -1,0 +1,17 @@
+[package]
+name = "llm-writing-feedback-tauri"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2.0.5", features = [] }
+
+[dependencies]
+tauri = { version = "2.2.5", features = [] }
+reqwest = { version = "0.12.12", features = ["json"] }
+tokio = { version = "1.0", features = ["full"] }
+serde_json = "1.0"
+dotenv = "0.15"
+indicatif = "0.17.0" 
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
