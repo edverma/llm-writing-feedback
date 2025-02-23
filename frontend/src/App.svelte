@@ -9,6 +9,8 @@
   let feedback = '';
   let monitoring = false;
   let error = '';
+  let isLoading = false;
+  $: version = '1';
 
   async function pickFile() {
     try {
@@ -37,14 +39,33 @@
     }
   }
 
-  onMount(() => {
-    const unlistenPromise = listen('feedback-update', event => {
+  async function stopMonitor() {
+    try {
       error = '';
-      feedback = `Version ${event.payload.version}: ${event.payload.feedback}`;
-    });
+      await invoke('stop_feedback_monitor');
+    } catch (err) {
+      error = 'Error stopping monitor: ' + err;
+    }
+  }
+
+  onMount(() => {
+    const unlistenPromises = [
+      listen('feedback-update', event => {
+        error = '';
+        version = event.payload.version ? event.payload.version : version;
+        feedback = `${event.payload.feedback}`;
+      }),
+      listen('monitoring-stopped', () => {
+        monitoring = false;
+        feedback = '';
+      }),
+      listen('loading-state', event => {
+        isLoading = event.payload;
+      })
+    ];
 
     return () => {
-      unlistenPromise.then(unlisten => unlisten());
+      unlistenPromises.forEach(promise => promise.then(unlisten => unlisten()));
     };
   });
 </script>
@@ -173,6 +194,40 @@
     color: #48bb78;
     font-weight: 600;
   }
+
+  .spinner {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    border: 3px solid transparent;
+    border-radius: 50%;
+    border-top-color: #4299e1;
+    border-right-color: #4299e1;
+    animation: spin 0.8s linear infinite;
+    margin-left: 8px;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .feedback-container {
+    width: 100%;
+    max-width: 600px;
+    margin-top: 1.5rem;
+    position: relative;
+  }
+
+  .feedback-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
 </style>
 
 <main>
@@ -191,8 +246,8 @@
         Choose File
       </button>
     </div>
-    <button on:click={startMonitor} disabled={monitoring || !filePath}>
-      {monitoring ? 'Monitoring...' : 'Start Monitoring'}
+    <button on:click={monitoring ? stopMonitor : startMonitor} disabled={!filePath}>
+      {monitoring ? 'Stop Monitoring' : 'Start Monitoring'}
     </button>
     
     {#if monitoring}
@@ -206,9 +261,19 @@
     </div>
   {/if}
 
-  {#if feedback}
-    <div class="feedback" transition:slide>
-      {feedback}
+  {#if feedback || isLoading}
+    <div class="feedback-container">
+      <div class="feedback-header">
+        <h3>Version {version}&nbsp;</h3>
+        {#if isLoading}
+          <div class="spinner"></div>
+        {/if}
+      </div>
+      {#if feedback}
+        <div class="feedback" transition:slide>
+          {feedback}
+        </div>
+      {/if}
     </div>
   {/if}
 </main> 

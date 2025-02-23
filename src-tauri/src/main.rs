@@ -5,6 +5,9 @@
 
 use tauri;
 use tauri::Emitter;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use tauri::Listener;
 
 #[tauri::command]
 async fn process_file(file_path: String) -> Result<String, String> {
@@ -22,6 +25,12 @@ async fn process_file(file_path: String) -> Result<String, String> {
     // TODO: Integrate with the Anthropic API to process the file content and generate feedback
     // For now, simply return the file content as a placeholder
     Ok(content)
+}
+
+#[tauri::command]
+async fn stop_feedback_monitor(app_handle: tauri::AppHandle) -> Result<(), String> {
+    let _ = app_handle.emit("stop-monitoring", ());
+    Ok(())
 }
 
 #[tauri::command]
@@ -43,7 +52,15 @@ async fn start_feedback_monitor(file_path: String, app_handle: tauri::AppHandle)
         let mut version_num = 1;
         const MAX_NUM_DRAFTS: usize = 2;
 
-        loop {
+        // Set up stop signal handling
+        let stop_signal = Arc::new(AtomicBool::new(false));
+        let stop_signal_clone = stop_signal.clone();
+        
+        let _stop_handler = app_handle.listen("stop-monitoring", move |_| {
+            stop_signal_clone.store(true, Ordering::SeqCst);
+        });
+
+        while !stop_signal.load(Ordering::SeqCst) {
             let new_content = match tokio::fs::read_to_string(&file_path).await {
                 Ok(content) => content,
                 Err(err) => {
@@ -75,6 +92,9 @@ async fn start_feedback_monitor(file_path: String, app_handle: tauri::AppHandle)
                 "messages": messages,
             });
 
+            // Emit loading state before making API call
+            let _ = app_handle.emit("loading-state", true);
+
             let response_result = client
                 .post(api_url)
                 .header("x-api-key", &api_key)
@@ -83,6 +103,9 @@ async fn start_feedback_monitor(file_path: String, app_handle: tauri::AppHandle)
                 .json(&payload)
                 .send()
                 .await;
+
+            // Emit loading state complete after getting response
+            let _ = app_handle.emit("loading-state", false);
 
             match response_result {
                 Ok(resp) => {
@@ -112,6 +135,9 @@ async fn start_feedback_monitor(file_path: String, app_handle: tauri::AppHandle)
                 }
             }
         }
+        
+        // Emit stopped event when monitoring ends
+        let _ = app_handle.emit("monitoring-stopped", ());
     });
     Ok(())
 }
@@ -121,7 +147,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![process_file, start_feedback_monitor])
+        .invoke_handler(tauri::generate_handler![process_file, start_feedback_monitor, stop_feedback_monitor])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
     Ok(())
