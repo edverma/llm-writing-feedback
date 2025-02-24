@@ -12,6 +12,7 @@
       "core:menu:default",
       "core:tray:default",
       "core:window:allow-set-title",
-      "dialog:default"
+      "dialog:default",
+      "fs:default"
     ]
   }

@@ -3,11 +3,34 @@
     windows_subsystem = "windows"
 )]
 
+mod db;
+
 use tauri;
 use tauri::Emitter;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::Listener;
+use db::Database;
+
+#[tauri::command]
+async fn set_api_key(api_key: String) -> Result<(), String> {
+    let db = Database::new().map_err(|e| format!("Database error: {}", e))?;
+    db.set_api_key(&api_key).map_err(|e| format!("Failed to save API key: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_api_key() -> Result<Option<String>, String> {
+    let db = Database::new().map_err(|e| format!("Database error: {}", e))?;
+    db.get_api_key().map_err(|e| format!("Failed to get API key: {}", e))
+}
+
+#[tauri::command]
+async fn delete_api_key() -> Result<(), String> {
+    let db = Database::new().map_err(|e| format!("Database error: {}", e))?;
+    db.delete_api_key().map_err(|e| format!("Failed to delete API key: {}", e))?;
+    Ok(())
+}
 
 #[tauri::command]
 async fn process_file(file_path: String) -> Result<String, String> {
@@ -36,14 +59,26 @@ async fn stop_feedback_monitor(app_handle: tauri::AppHandle) -> Result<(), Strin
 #[tauri::command]
 async fn start_feedback_monitor(file_path: String, app_handle: tauri::AppHandle) -> Result<(), String> {
     tokio::spawn(async move {
-        dotenv::dotenv().ok();
-        let api_key = match std::env::var("ANTHROPIC_API_KEY") {
-            Ok(key) => key,
+        let db = match Database::new() {
+            Ok(db) => db,
             Err(err) => {
-                eprintln!("ANTHROPIC_API_KEY not set: {}", err);
+                eprintln!("Database error: {}", err);
                 return;
-            },
+            }
         };
+
+        let api_key = match db.get_api_key() {
+            Ok(Some(key)) => key,
+            Ok(None) => {
+                let _ = app_handle.emit("api-key-missing", ());
+                return;
+            }
+            Err(err) => {
+                eprintln!("Failed to get API key: {}", err);
+                return;
+            }
+        };
+
         let api_url = "https://api.anthropic.com/v1/messages";
         let api_model = "claude-3-5-sonnet-20241022";
         let client = reqwest::Client::new();
@@ -88,7 +123,7 @@ async fn start_feedback_monitor(file_path: String, app_handle: tauri::AppHandle)
             let payload = serde_json::json!({
                 "model": api_model,
                 "max_tokens": 1024,
-                "system": "You are a robot that lives inside of a simple markdown text editor. The user is unable to directly respond to your messages. The user is currently writing an article. You will be given each consecutive version of the article. The user is currently actively writing and editing the article. Upon reading the article, you should offer VERY BRIEF, but helpful, feedback on the latest version of the article. Only comment on the changed content between the latest version and the previous versions of the article.",
+                "system": "You are a robot that lives inside of a simple markdown text editor. The user is unable to directly respond to your messages. The user is currently writing an article. You will be given each consecutive version of the article. The user is currently actively writing and editing the article. Upon reading the article, you should offer VERY BRIEF, but helpful, feedback on the latest version of the article. Only comment on the changed content between the latest version and the previous versions of the article. Format your response in markdown.",
                 "messages": messages,
             });
 
@@ -147,7 +182,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![process_file, start_feedback_monitor, stop_feedback_monitor])
+        .invoke_handler(tauri::generate_handler![
+            process_file,
+            start_feedback_monitor,
+            stop_feedback_monitor,
+            set_api_key,
+            get_api_key,
+            delete_api_key
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
     Ok(())

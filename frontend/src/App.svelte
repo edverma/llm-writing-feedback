@@ -4,13 +4,52 @@
   import { listen } from '@tauri-apps/api/event';
   import { fade, slide } from 'svelte/transition';
   import { open } from '@tauri-apps/plugin-dialog';
+  import { marked } from 'marked';
 
   let filePath = '';
   let feedback = '';
   let monitoring = false;
   let error = '';
   let isLoading = false;
+  let apiKey = '';
+  let hasApiKey = false;
+  let showApiKey = false;
   $: version = '1';
+
+  async function checkApiKey() {
+    try {
+      const key = await invoke('get_api_key');
+      hasApiKey = !!key;
+      if (key) {
+        apiKey = '••••••••••••••••';
+      }
+    } catch (err) {
+      error = 'Error checking API key: ' + err;
+    }
+  }
+
+  async function saveApiKey() {
+    try {
+      error = '';
+      await invoke('set_api_key', { apiKey });
+      hasApiKey = true;
+      apiKey = '••••••••••••••••';
+      showApiKey = false;
+    } catch (err) {
+      error = 'Error saving API key: ' + err;
+    }
+  }
+
+  async function deleteApiKey() {
+    try {
+      error = '';
+      await invoke('delete_api_key');
+      hasApiKey = false;
+      apiKey = '';
+    } catch (err) {
+      error = 'Error deleting API key: ' + err;
+    }
+  }
 
   async function pickFile() {
     try {
@@ -48,12 +87,14 @@
     }
   }
 
-  onMount(() => {
+  onMount(async () => {
+    await checkApiKey();
+    
     const unlistenPromises = [
       listen('feedback-update', event => {
         error = '';
         version = event.payload.version ? event.payload.version : version;
-        feedback = `${event.payload.feedback}`;
+        feedback = marked.parse(event.payload.feedback);
       }),
       listen('monitoring-stopped', () => {
         monitoring = false;
@@ -61,6 +102,10 @@
       }),
       listen('loading-state', event => {
         isLoading = event.payload;
+      }),
+      listen('api-key-missing', () => {
+        error = 'Please set your Anthropic API key first';
+        monitoring = false;
       })
     ];
 
@@ -228,10 +273,129 @@
     align-items: center;
     margin-bottom: 0.5rem;
   }
+
+  :global(.feedback h1) {
+    font-size: 1.8rem;
+    margin: 1rem 0;
+  }
+
+  :global(.feedback h2) {
+    font-size: 1.5rem;
+    margin: 0.8rem 0;
+  }
+
+  :global(.feedback h3) {
+    font-size: 1.2rem;
+    margin: 0.6rem 0;
+  }
+
+  :global(.feedback p) {
+    margin: 0.8rem 0;
+  }
+
+  :global(.feedback ul, .feedback ol) {
+    margin: 0.8rem 0;
+    padding-left: 1.5rem;
+  }
+
+  :global(.feedback li) {
+    margin: 0.4rem 0;
+  }
+
+  :global(.feedback code) {
+    background: #f7fafc;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-family: monospace;
+  }
+
+  :global(.feedback pre) {
+    background: #f7fafc;
+    padding: 1rem;
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+
+  :global(.feedback blockquote) {
+    border-left: 3px solid #cbd5e0;
+    margin: 1rem 0;
+    padding-left: 1rem;
+    color: #4a5568;
+  }
+
+  .api-key-container {
+    width: 100%;
+    max-width: 600px;
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+  }
+
+  .api-key-input {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .api-key-actions {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .secondary-button {
+    background: #718096;
+  }
+
+  .secondary-button:hover:not(:disabled) {
+    background: #4a5568;
+  }
+
+  .danger-button {
+    background: #f56565;
+  }
+
+  .danger-button:hover:not(:disabled) {
+    background: #c53030;
+  }
 </style>
 
 <main>
   <h1>Realtime Article Feedback</h1>
+  
+  <div class="api-key-container" transition:fade>
+    <h3>Anthropic API Key</h3>
+    {#if !hasApiKey || showApiKey}
+      <div class="api-key-input">
+        {#if showApiKey}
+          <input
+            type="text"
+            bind:value={apiKey}
+            placeholder="Enter your Anthropic API key"
+          />
+        {:else}
+          <input
+            type="password"
+            bind:value={apiKey}
+            placeholder="Enter your Anthropic API key"
+          />
+        {/if}
+        <button class="pick-button" on:click={saveApiKey}>
+          Save Key
+        </button>
+      </div>
+    {:else}
+      <div class="api-key-actions">
+        <button class="secondary-button" on:click={() => showApiKey = true}>
+          Update Key
+        </button>
+        <button class="danger-button" on:click={deleteApiKey}>
+          Delete Key
+        </button>
+      </div>
+    {/if}
+  </div>
   
   <div class="input-container" transition:fade>
     <div class="file-picker">
@@ -246,7 +410,7 @@
         Choose File
       </button>
     </div>
-    <button on:click={monitoring ? stopMonitor : startMonitor} disabled={!filePath}>
+    <button on:click={monitoring ? stopMonitor : startMonitor} disabled={!filePath || !hasApiKey}>
       {monitoring ? 'Stop Monitoring' : 'Start Monitoring'}
     </button>
     
@@ -271,7 +435,7 @@
       </div>
       {#if feedback}
         <div class="feedback" transition:slide>
-          {feedback}
+          {@html feedback}
         </div>
       {/if}
     </div>
