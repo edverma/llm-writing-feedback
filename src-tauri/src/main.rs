@@ -34,12 +34,6 @@ async fn delete_api_key() -> Result<(), String> {
 
 #[tauri::command]
 async fn process_file(file_path: String) -> Result<String, String> {
-    // Load environment variables
-    dotenv::dotenv().ok();
-    // Retrieve API key from environment (currently unused in this stub)
-    let _api_key =
-        std::env::var("ANTHROPIC_API_KEY").map_err(|e| format!("API key error: {}", e))?;
-
     // Read the file contents asynchronously
     let content = tokio::fs::read_to_string(&file_path)
         .await

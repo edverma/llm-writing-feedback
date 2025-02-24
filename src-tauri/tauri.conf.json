@@ -9,7 +9,10 @@
   "bundle": {
     "active": true,
     "targets": ["dmg"],
-    "icon": ["icons/icon.icns"]
+    "icon": ["icons/icon.icns"],
+    "macOS": {
+      "signingIdentity": "Developer ID Application: Evan Verma (NMZRC8JLVQ)"
+    }
   },
   "app": {
     "windows": [

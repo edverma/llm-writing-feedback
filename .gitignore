@@ -1,6 +1,8 @@
 /target
 .env
 *~
-/frontend/node_modules
-/src-tauri/target
-/src-tauri/node_modules
+/frontend/node_modules/
+/src-tauri/target/
+/src-tauri/node_modules/
+AuthKey_92SM3SK28B.p8
+/frontend/dist/
